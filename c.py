@@ -67,7 +67,7 @@ def start_farming(headers):
         print(colored("Gagal memulai farming.", 'red'))
 
 def start_game(headers):
-    start_game_url = "https://tonclayton.fun/api/game/start"
+    start_game_url = "https://tonclayton.fun/api/game/start-game"
     payload = {}
     response = requests.post(start_game_url, headers=headers, json=payload)
     if response.status_code == 200:
@@ -76,14 +76,14 @@ def start_game(headers):
         print(colored("Gagal memulai game.", 'red'))
 
 def save_tile(headers, max_tile):
-    save_tile_url = "https://tonclayton.fun/api/game/save-tile"
+    save_tile_url = "https://tonclayton.fun/api/game/save-tile-game"
     payload = {"maxTile": max_tile}
     response = requests.post(save_tile_url, headers=headers, json=payload)
     if response.status_code == 200:
         print(colored(f"MaxTile: {max_tile} - {response.json()['message']}", 'green'))
 
 def end_game(headers):
-    over_game_url = "https://tonclayton.fun/api/game/over"
+    over_game_url = "https://tonclayton.fun/api/game/over-game"
     payload = {}
     response = requests.post(over_game_url, headers=headers, json=payload)
     if response.status_code == 200:
@@ -164,7 +164,7 @@ for idx, account in enumerate(accounts):
             # Simulasi permainan selama 1 menit tanpa pengulangan max_tile
             game_duration = timedelta(minutes=1)
             end_time = datetime.now() + game_duration
-            max_tile = 4  # Mulai dengan 4
+            max_tile = 8  # Mulai dengan 4
             used_tiles = set()
             
             while datetime.now() < end_time:
@@ -177,7 +177,7 @@ for idx, account in enumerate(accounts):
                 
                 # Batasi maxTile hingga 2048
                 if max_tile > 2048:
-                    max_tile = 4
+                    max_tile = 8
             
             end_game(headers)  # Selesaikan game
         
