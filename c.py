@@ -26,7 +26,7 @@ class Clayton:
         self.base_url = "https://tonclayton.fun/api"
 
     def login(self, init_data):
-        response = self.make_request("/user/auth", "post", {}, init_data)
+        response = self.make_request("/user/authorization", "post", {}, init_data)
         
         if response['success']:
             user_data = response['data']['user']
