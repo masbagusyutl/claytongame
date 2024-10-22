@@ -7,6 +7,16 @@ from datetime import datetime
 # Inisialisasi Colorama
 init(autoreset=True)
 
+def print_welcome_message():
+    print(Fore.WHITE + r"""
+_  _ _   _ ____ ____ _    ____ _ ____ ___  ____ ____ ___ 
+|\ |  \_/  |__| |__/ |    |__| | |__/ |  \ |__/ |  | |__]
+| \|   |   |  | |  \ |    |  | | |  \ |__/ |  \ |__| |         
+          """)
+    print(Fore.GREEN + Style.BRIGHT + "Nyari Airdrop Clayton Game")
+    print(Fore.YELLOW + Style.BRIGHT + "Telegram: https://t.me/nyariairdrop")
+
+
 class Clayton:
     def __init__(self):
         self.headers = {
@@ -128,7 +138,7 @@ class Clayton:
 
     def play_stack(self, init_data):
         print(Fore.YELLOW + "Memulai permainan Stack")
-        start_game_result = self.make_request("/stack/start-game", "post", {}, init_data)
+        start_game_result = self.make_request("/stack/st-game", "post", {}, init_data)
         
         if start_game_result["success"]:
             print(Fore.GREEN + "Permainan Stack dimulai dengan sukses")
@@ -147,7 +157,7 @@ class Clayton:
                 time.sleep(random.uniform(5, 15))
             
             final_score = scores[current_score_index - 1] if current_score_index > 0 else 90
-            end_game_result = self.make_request("/stack/end-game", "post", {"score": final_score, "multiplier": 1}, init_data)
+            end_game_result = self.make_request("/stack/en-game", "post", {"score": final_score, "multiplier": 1}, init_data)
             if end_game_result["success"]:
                 reward = end_game_result["data"]
                 print(Fore.GREEN + f"Permainan Stack selesai | Mendapatkan {reward['earn']} CL | {reward['xp_earned']} XP")
@@ -168,6 +178,7 @@ class Clayton:
         return 0
 
     def main(self):
+        print_welcome_message()  # Call the welcome message at the start
         print(Fore.CYAN + "Memulai proses utama...")
         
         try:
