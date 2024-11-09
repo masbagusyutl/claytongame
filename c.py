@@ -2,7 +2,6 @@ import requests
 import time
 import random
 from colorama import Fore, Style, init
-from datetime import datetime
 
 # Inisialisasi Colorama
 init(autoreset=True)
@@ -33,100 +32,129 @@ class Clayton:
             "Sec-Fetch-Site": "same-origin",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
         }
-        self.base_url = "https://tonclayton.fun/api"
+        self.base_url = "https://tonclayton.fun/api/cc82f330-6a6d-4deb-a15b-6a332a67ffa7"
+        self.retries = 5
+
+    def make_request(self, endpoint, method='post', data=None, init_data=""):
+        url = f"{self.base_url}{endpoint}"
+        headers = {**self.headers, "Init-Data": init_data}
+
+        for attempt in range(self.retries):
+            try:
+                response = requests.request(method, url, json=data, headers=headers)
+                response.raise_for_status()
+                return {"success": True, "data": response.json()}
+            except requests.RequestException as e:
+                if attempt < self.retries - 1:
+                    print(Fore.RED + f"Kesalahan API, mencoba ulang ({attempt + 1}): {str(e)}")
+                    time.sleep(5)
+                else:
+                    return {"success": False, "error": str(e)}
 
     def login(self, init_data):
         response = self.make_request("/user/authorization", "post", {}, init_data)
-        
         if response['success']:
             user_data = response['data']['user']
-            
-            print(Fore.YELLOW + f"Akun: {user_data['username']}" + Style.RESET_ALL)
-            print(Fore.YELLOW + f"Level: {user_data['level']}" + Style.RESET_ALL)
-            print(Fore.YELLOW + f"Token: {user_data['tokens']}" + Style.RESET_ALL)
-            print(Fore.YELLOW + f"Penyimpanan: {user_data['storage']}" + Style.RESET_ALL)
-            print(Fore.YELLOW + f"Bisa Klaim: {user_data['can_claim']}" + Style.RESET_ALL)
-            print(Fore.YELLOW + f"Kesempatan Harian: {user_data['daily_attempts']}" + Style.RESET_ALL)
-            print(Fore.YELLOW + f"XP Saat Ini: {user_data['current_xp']}" + Style.RESET_ALL)
-            
+            print(Fore.YELLOW + f"Akun: {user_data['username']}")
+            print(Fore.YELLOW + f"Level: {user_data['level']}")
+            print(Fore.YELLOW + f"Token: {user_data['tokens']}")
+            print(Fore.YELLOW + f"Kesempatan Harian: {user_data['daily_attempts']}")
             return response
         else:
-            print(Fore.RED + f"Gagal dapat info akun: {response['error']}")
+            print(Fore.RED + f"Gagal login: {response['error']}")
             return None
 
-    def make_request(self, endpoint, method='post', data=None, init_data=""):
-        url = endpoint if endpoint.startswith("http") else f"{self.base_url}{endpoint}"
-        headers = {**self.headers, "Init-Data": init_data}
-
-        try:
-            response = requests.request(method, url, json=data, headers=headers)
-            response.raise_for_status()
-            return {"success": True, "data": response.json()}
-        except requests.RequestException as e:
-            return {"success": False, "error": str(e)}
-
-    def countdown(self, seconds):
-        for i in range(seconds, -1, -1):
-            hours, rem = divmod(i, 3600)
-            minutes, secs = divmod(rem, 60)
-            print(f"Menunggu {hours:02}:{minutes:02}:{secs:02} untuk memulai kembali.", end='\r')
-            time.sleep(1)
-        print("")
-
-
-    def handle_all_tasks(self, init_data):
-        task_types = ["default", "partner", "daily", "super"]
-        for task_type in task_types:
-            self.handle_tasks(task_type, init_data)
-    
-    def handle_tasks(self, task_type, init_data):
-        print(Fore.YELLOW + f"Mengecek tugas {task_type}")
-        tasks_result = self.get_task_list(task_type, init_data)
-        
-        if tasks_result["success"]:
-            uncompleted_tasks = [task for task in tasks_result["data"] if not task['is_completed'] and not task['is_claimed']]
-            for task in uncompleted_tasks:
-                print(Fore.GREEN + f"Mengerjakan tugas {task_type} | {task['task']['title']}")
-                complete_result = self.complete_task(init_data, task['task_id'])
-                
-                if complete_result["success"]:
-                    reward_result = self.claim_task_reward(init_data, task['task_id'])
-                    if reward_result["success"]:
-                        print(Fore.GREEN + f"Berhasil menyelesaikan tugas {task_type} | {task['task']['title']} | Mendapatkan {reward_result['data']['reward_tokens']} CL")
-                    else:
-                        print(Fore.RED + f"Gagal klaim hadiah untuk tugas {task_type} | {task['task']['title']} | {reward_result['error']}")
-                else:
-                    print(Fore.RED + f"Gagal menyelesaikan tugas {task_type} | {task['task']['title']} | {complete_result['error']}")
+    def claim_daily_reward(self, init_data):
+        response = self.make_request("/user/daily-claim", "post", {}, init_data)
+        if response['success']:
+            if response['data'].get("message") == "daily reward claimed successfully":
+                print(Fore.GREEN + "Berhasil klaim hadiah harian.")
+            else:
+                print(Fore.RED + f"Gagal klaim hadiah harian: {response['error']}")
         else:
-            print(Fore.RED + f"Tidak dapat mendapatkan daftar tugas {task_type} | {tasks_result['error']}")
+            print(Fore.RED + f"Gagal klaim hadiah harian: {response['error']}")
+            if "details" in response:
+                print(Fore.RED + f"Detail kesalahan: {response['details']}")
 
-    def get_task_list(self, task_type, init_data):
-        return self.make_request(f"/tasks/{task_type}-tasks", "get", {}, init_data)
+    def get_partner_tasks(self, init_data):
+        response = self.make_request("/tasks/partner-tasks", "get", {}, init_data)
+        if response['success']:
+            self.process_tasks(response['data'], "partner", init_data)
+        else:
+            print(Fore.RED + f"Gagal memuat tugas partner: {response['error']}")
 
-    def complete_task(self, init_data, task_id):
-        return self.make_request("/tasks/complete", "post", {"task_id": task_id}, init_data)
+    def get_daily_tasks(self, init_data):
+        response = self.make_request("/tasks/daily-tasks", "get", {}, init_data)
+        if response['success']:
+            self.process_tasks(response['data'], "daily", init_data)
+        else:
+            print(Fore.RED + f"Gagal memuat tugas harian: {response['error']}")
 
-    def claim_task_reward(self, init_data, task_id):
-        return self.make_request("/tasks/claim", "post", {"task_id": task_id}, init_data)
+
+    def get_other_tasks(self, init_data):
+        response = self.make_request("/tasks/default-tasks", "get", {}, init_data)
+        if response['success']:
+            self.process_tasks(response['data'], "other", init_data)
+        else:
+            print(Fore.RED + f"Gagal memuat tugas lainnya: {response['error']}")
+
+
+    def process_tasks(self, tasks, task_type, init_data):
+        for task in tasks:
+            if not task.get("is_completed") and not task.get("is_claimed"):
+                task_id = task.get("task_id")
+                print(Fore.YELLOW + f"Mengerjakan tugas {task_type}: {task['task']['title']}")
+                if self.complete_task(task_id, init_data):
+                    self.claim_task_reward(task_id, init_data)
+            else:
+                print(Fore.YELLOW + f"Tugas {task_type} {task['task']['title']} sudah selesai atau sudah diklaim.")
+
+    def complete_task(self, task_id, init_data):
+        response = self.make_request("/tasks/complete", "post", {"task_id": task_id}, init_data)
+        if response['success']:
+            print(Fore.GREEN + f"Tugas {task_id} selesai.")
+            return True
+        else:
+            print(Fore.RED + f"Gagal menyelesaikan tugas {task_id}: {response['error']}")
+            return False
+
+    def claim_task_reward(self, task_id, init_data):
+        response = self.make_request("/tasks/claim", "post", {"task_id": task_id}, init_data)
+        if response['success']:
+            reward = response['data'].get("reward_tokens", 0)
+            print(Fore.GREEN + f"Klaim hadiah tugas {task_id}: Mendapat {reward} CL")
+        else:
+            print(Fore.RED + f"Gagal klaim hadiah tugas {task_id}: {response['error']}")
 
     def play_2048(self, init_data):
         print(Fore.YELLOW + "Memulai permainan 2048")
         start_game_result = self.make_request("/game/start", "post", {}, init_data)
         
-        if start_game_result["success"] and start_game_result["data"]["message"] == "Game started successfully":
-            print(Fore.GREEN + "Permainan 2048 dimulai dengan sukses")
+        if start_game_result["success"] and "session_id" in start_game_result["data"]:
+            session_id = start_game_result["data"]["session_id"]
+            print(Fore.GREEN + f"Permainan 2048 dimulai")
             milestones = [4, 8, 16, 32, 64, 128, 256, 512, 1024]
-            end_time = time.time() + 150  # durasi 150 detik
             
             for milestone in milestones:
-                if time.time() >= end_time:
-                    break
-                time.sleep(5)  # Jeda 5 detik untuk simulasi
-                save_game_result = self.make_request("/game/save-tile", "post", {"maxTile": milestone}, init_data)
+                time.sleep(5)
+                save_game_result = self.make_request(
+                    "/game/save-tile", 
+                    "post", 
+                    {"session_id": session_id, "maxTile": milestone}, 
+                    init_data
+                )
                 if save_game_result["success"]:
                     print(Fore.GREEN + f"Berhasil mencapai tile {milestone}")
-                    
-            end_game_result = self.make_request("/game/over", "post", {"multiplier": 1}, init_data)
+                else:
+                    print(Fore.RED + f"Gagal simpan tile {milestone}: {save_game_result['error']}")
+                    break
+            
+            end_game_result = self.make_request(
+                "/game/over", 
+                "post", 
+                {"session_id": session_id, "multiplier": 1, "maxTile": milestones[-1]}, 
+                init_data
+            )
             if end_game_result["success"]:
                 reward = end_game_result["data"]
                 print(Fore.GREEN + f"Permainan 2048 selesai | Mendapatkan {reward['earn']} CL | {reward['xp_earned']} XP")
@@ -140,24 +168,31 @@ class Clayton:
         print(Fore.YELLOW + "Memulai permainan Stack")
         start_game_result = self.make_request("/stack/st-game", "post", {}, init_data)
         
-        if start_game_result["success"]:
-            print(Fore.GREEN + "Permainan Stack dimulai dengan sukses")
-            end_time = time.time() + 120  # durasi 120 detik
+        if start_game_result["success"] and "session_id" in start_game_result["data"]:
+            session_id = start_game_result["data"]["session_id"]
+            print(Fore.GREEN + f"Permainan Stack dimulai")
             scores = [10, 20, 30, 40, 50, 60, 70, 80, 90]
-            current_score_index = 0
             
-            while time.time() < end_time and current_score_index < len(scores):
-                score = scores[current_score_index]
-                update_result = self.make_request("/stack/update-game", "post", {"score": score}, init_data)
+            for score in scores:
+                time.sleep(random.uniform(5, 10))
+                update_result = self.make_request(
+                    "/stack/update-game", 
+                    "post", 
+                    {"session_id": session_id, "score": score}, 
+                    init_data
+                )
                 if update_result["success"]:
-                    print(Fore.GREEN + f"Update skor Stack: {score}")
-                    current_score_index += 1
+                    print(Fore.GREEN + f"Stack berhasil diperbarui dengan Skor : {score}")
                 else:
-                    print(Fore.RED + f"Gagal update skor Stack: {update_result['error']}")
-                time.sleep(random.uniform(5, 15))
+                    print(Fore.RED + f"Gagal memperbarui skor {score}: {update_result['error']}")
+                    break
             
-            final_score = scores[current_score_index - 1] if current_score_index > 0 else 90
-            end_game_result = self.make_request("/stack/en-game", "post", {"score": final_score, "multiplier": 1}, init_data)
+            end_game_result = self.make_request(
+                "/stack/en-game", 
+                "post", 
+                {"session_id": session_id, "score": scores[-1], "multiplier": 1}, 
+                init_data
+            )
             if end_game_result["success"]:
                 reward = end_game_result["data"]
                 print(Fore.GREEN + f"Permainan Stack selesai | Mendapatkan {reward['earn']} CL | {reward['xp_earned']} XP")
@@ -166,21 +201,33 @@ class Clayton:
         else:
             print(Fore.RED + "Gagal memulai permainan Stack")
 
-    def play_random_game(self, init_data):
-        games = [self.play_2048, self.play_stack]
-        chosen_game = random.choice(games)
-        chosen_game(init_data)
+    def play_random_game(self, init_data, daily_attempts):
+        game_attempts = 0
+        last_game = None
 
-    def get_daily_attempts(self, init_data):
-        login_result = self.login(init_data)
-        if login_result and login_result['success']:
-            return login_result['data']['user']['daily_attempts']
-        return 0
+        while game_attempts < daily_attempts:
+            # Select random game type
+            game_choice = random.choice(['2048', 'stack'])
+            while game_choice == last_game and daily_attempts > 1:
+                game_choice = random.choice(['2048', 'stack'])
+
+            # Perbarui game terakhir dengan pilihan baru
+            last_game = game_choice
+            
+            # Increment attempt count
+            game_attempts += 1
+            print(Fore.CYAN + f"Memulai game ke-{game_attempts} dari {daily_attempts} | Game: {game_choice.capitalize()}")
+            
+            # Play selected game
+            if game_choice == '2048':
+                self.play_2048(init_data)
+            else:
+                self.play_stack(init_data)
+                
+            time.sleep(5)  # Delay between games to mimic real user interaction
 
     def main(self):
-        print_welcome_message()  # Call the welcome message at the start
-        print(Fore.CYAN + "Memulai proses utama...")
-        
+        print_welcome_message()
         try:
             with open("data.txt", "r") as file:
                 data = [line.strip() for line in file if line.strip()]
@@ -188,35 +235,39 @@ class Clayton:
             print(Fore.RED + "File 'data.txt' tidak ditemukan.")
             return
 
-        total_accounts = len(data)
-        print(Fore.CYAN + f"Total akun yang ditemukan: {total_accounts}")
-
+        print(Fore.CYAN + f"Total akun yang diproses: {len(data)}")
         for i, init_data in enumerate(data):
-            print(Fore.YELLOW + f"Memproses akun ke-{i + 1} dari {total_accounts}...")
+            print(Fore.YELLOW + f"Memproses akun ke-{i + 1} dari {len(data)}...")
             
-            self.login(init_data)
-            self.handle_all_tasks(init_data)
-            
-            daily_attempts = self.get_daily_attempts(init_data)
-            print(Fore.CYAN + f"Kesempatan bermain game awal: {daily_attempts}")
-            
-            while daily_attempts > 0:
-                print(Fore.CYAN + f"Kesempatan bermain game tersisa: {daily_attempts}")
-                self.play_random_game(init_data)
-                daily_attempts = self.get_daily_attempts(init_data)
-                time.sleep(5)  # Jeda 5 detik antara permainan
-            
-            print(Fore.CYAN + "Semua kesempatan bermain game telah digunakan.")
-            print(Fore.CYAN + f"Menunggu 5 detik sebelum melanjutkan ke akun berikutnya...")
-            time.sleep(5)
+            # Login and fetch daily attempts
+            user_data = self.login(init_data)
+            if user_data:
+                daily_attempts = user_data['data']['user']['daily_attempts']
+                print(Fore.YELLOW + f"Kesempatan Harian Tersisa: {daily_attempts}")
+                self.claim_daily_reward(init_data)
+                self.get_partner_tasks(init_data)
+                self.get_daily_tasks(init_data)
+                self.get_other_tasks(init_data)
+                
+                # Start games until daily attempts are exhausted
+                self.play_random_game(init_data, daily_attempts)
+            time.sleep(5)  # Delay between processing accounts
 
-        print(Fore.CYAN + "Semua akun telah diproses. Menunggu 24 jam sebelum memulai ulang.")
-        self.countdown(24 * 60 * 60)  # 24 jam = 24 * 60 * 60 detik
+        self.start_countdown()
 
-        # Setelah hitung mundur selesai, mulai ulang dari awal
+
+    def start_countdown(self):
+        end_time = datetime.now() + timedelta(days=1)
+        while datetime.now() < end_time:
+            remaining = end_time - datetime.now()
+            hours, remainder = divmod(remaining.seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            print(f"\rWaktu tersisa hingga restart: {hours:02}:{minutes:02}:{seconds:02}", end="")
+            time.sleep(1)
+        
+        print("\nMemulai ulang proses setelah 1 hari.")
         self.main()
 
-# Jalankan kode utama
 if __name__ == "__main__":
     client = Clayton()
     client.main()
