@@ -70,8 +70,10 @@ class Clayton:
             if response['data'].get("message") == "daily reward claimed successfully":
                 print(Fore.GREEN + "Berhasil klaim hadiah harian.")
             else:
+                error_message = response.get('error', 'Unknown error occurred')
                 print(Fore.RED + f"Gagal klaim hadiah harian: {response['error']}")
         else:
+            error_message = response.get('error', 'Unknown error occurred')
             print(Fore.RED + f"Gagal klaim hadiah harian: {response['error']}")
             if "details" in response:
                 print(Fore.RED + f"Detail kesalahan: {response['details']}")
@@ -82,6 +84,7 @@ class Clayton:
             self.process_tasks(response['data'], "partner", init_data)
         else:
             print(Fore.RED + f"Gagal memuat tugas partner: {response['error']}")
+
 
     def get_daily_tasks(self, init_data):
         response = self.make_request("/tasks/daily-tasks", "get", {}, init_data)
