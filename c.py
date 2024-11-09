@@ -2,6 +2,7 @@ import requests
 import time
 import random
 from colorama import Fore, Style, init
+from datetime import datetime, timedelta
 
 # Inisialisasi Colorama
 init(autoreset=True)
@@ -67,16 +68,9 @@ class Clayton:
     def claim_daily_reward(self, init_data):
         response = self.make_request("/user/daily-claim", "post", {}, init_data)
         if response['success']:
-            if response['data'].get("message") == "daily reward claimed successfully":
-                print(Fore.GREEN + "Berhasil klaim hadiah harian.")
-            else:
-                error_message = response.get('error', 'Unknown error occurred')
-                print(Fore.RED + f"Gagal klaim hadiah harian: {response['error']}")
+            print(Fore.GREEN + "Berhasil klaim hadiah harian.")
         else:
-            error_message = response.get('error', 'Unknown error occurred')
             print(Fore.RED + f"Gagal klaim hadiah harian: {response['error']}")
-            if "details" in response:
-                print(Fore.RED + f"Detail kesalahan: {response['details']}")
 
     def get_partner_tasks(self, init_data):
         response = self.make_request("/tasks/partner-tasks", "get", {}, init_data)
